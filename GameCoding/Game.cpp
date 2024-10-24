@@ -41,20 +41,26 @@ void Game::Render()
 		uint32 stride = sizeof(Vertex);
 		uint32 offset = 0;
 
-		// IA
+		// IA(Input Assembler), 입력 어셈블러
+		// Vertex데이터를 수집하고 Index버퍼를 이용해 Vertex의 복제나 중복을 방지하며 정점 데이터를 GPU에 전달하는 단계입니다.
 		_deviceContext->IASetVertexBuffers(0, 1, _vertexBuffer.GetAddressOf(), &stride, &offset);
 		_deviceContext->IASetInputLayout(_inputLayout.Get());
 		_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		// VS
+		// VS(Vertex Shader)
+		// 정점 데이터들을 3D공간으로 변환시켜주는 작은 프로그램입니다.(정점의 위치를 계산해 3D 공간에서 2D(화면)공간으로 변환합니다)
 		_deviceContext->VSSetShader(_vertexShader.Get(), nullptr, 0);
 
-		// RS
+		// RS(Rasterize)
+		// Vertex Shader가 넘겨준 부분에 해당하는 모든 픽셀을 판별(변환)하는 단계입니다.
 
-		// PS
+		// PS(Pixel Shader)
+		// 그리고자 하는 오브젝트(모델, 리소스)에 색상을 입힐 때 사용하는 작은 프로그램입니다.
+		// 보여지는 모든 픽셀들에 대해 GPU에서 연산이 됩니다.(색을 입히는 과정이 아니라 계산하는(최종 출력 결정) 아닙니다)
 		_deviceContext->PSSetShader(_pixelShader.Get(), nullptr, 0);
 
-		// OM
+		// OM(Output Merge)
+		// 렌더링 파이프라인의 마지막 단계로 RTV에 그리기 전에 최종적으로 병합하는 단계입니다.(모든 픽셀 쉐이더를 화면에 그리는 단계)
 		_deviceContext->Draw(_vertices.size(), 0);
 	}
 
@@ -76,7 +82,9 @@ void Game::RenderEnd()
 	CHECK(hr);
 }
 
-// 화면 버퍼 만들기 작업
+// 그래픽 장치 초기화 및 화면에 출력을 위한 스왑체인 생성(화면 버퍼 만들기 작업)
+//	- Device	: GPU와 소통, 그래픽 리소스 생성 및 파이프라인의 관리
+//	- SwapChain : 전/후면 버퍼 관리 및 렌더링된 이미지를 화면에 출력
 void Game::CreateDeviceAndSwapChain()
 {
 	// 사용할 SwapChain(구조체)생성 및 초기화 작업
@@ -141,12 +149,12 @@ void Game::CreateDeviceAndSwapChain()
 	CHECK(hr);
 }
 
-// 위에서 생성한 후면 버퍼를 복사하는 역할
+// 위에서 생성한 후면 버퍼를 복사하는 역할(이름 그대로 렌더 타겟 뷰 생성)
 void Game::CreateRenderTargetView()
 {
 	HRESULT hr;
 
-	// swapChain에서 후면 버퍼에 해당하는 리소스를 ID3D11Texture2D로 만들어주고
+	// swapChain에서 후면 버퍼를 가져와서 ID3D11Texture2D 리소스를 만들어주고
 	ComPtr<ID3D11Texture2D> backBuffer = nullptr;
 	hr = _swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)backBuffer.GetAddressOf());
 	CHECK(hr);
@@ -156,7 +164,7 @@ void Game::CreateRenderTargetView()
 	CHECK(hr);
 }
 
-// 화면 크기에 변할 때 한 번만 수행
+// 화면 크기가 변할 때 한 번만 수행
 void Game::SetViewport()
 {
 	_viewPort.TopLeftX = 0.f;
@@ -167,9 +175,11 @@ void Game::SetViewport()
 	_viewPort.MaxDepth = 1.f;
 }
 
+// 기하 데이터를 생성해 GPU에 전달합니다.(정점 데이터 정의 및 Vertex Buffer 생성)
+// 삼각형을 그린다 하면 화면에 그려질 삼각형을 정의하고 GPU에서 사용할 수 있도록 합니다.
 void Game::CreateGeometry()
 {
-	// VertextData
+	// VertextData 정점 데이터 생성
 	{
 		_vertices.resize(3);
 
@@ -188,20 +198,22 @@ void Game::CreateGeometry()
 		// Buffer 묘사 단계
 		D3D11_BUFFER_DESC desc;
 		ZeroMemory(&desc, sizeof(desc));
-		desc.Usage = D3D11_USAGE_IMMUTABLE;
-		desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		desc.Usage = D3D11_USAGE_IMMUTABLE;			// 초기화 후 버퍼 데이터를 변경하지 않는 옵션
+		desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;	// 버퍼를 꼭짓점 버퍼로 입력 어셈블러 단계에 바인딩
 		desc.ByteWidth = (uint32)sizeof(Vertex) * _vertices.size();
 
-		// Buffer 복사 단계
+		// Buffer 복사 단계(GPU로 복사할 데이터 설정)
 		D3D11_SUBRESOURCE_DATA data;
 		ZeroMemory(&data, sizeof(data));
 		data.pSysMem = _vertices.data();	// 첫 번째 데이터의 시작주소
 
+		// 정점 데이터를 최종적으로 생성합니다.
 		_device->CreateBuffer(&desc, &data, _vertexBuffer.GetAddressOf());
 	}
 }
 
-// 정점 버퍼에서 데이터를 가져와 CreateInputLayout에서 정의한 시맨틱을 통해 쉐이더로 전달
+// 정점 버퍼에서 데이터를 가져와 CreateInputLayout에서 정의한 시맨틱을 통해 쉐이더로 전달(전달하기 위한 레이아웃 정의)
+// 여기서 말하는 레이아웃이란 정점 데이터의 구조를 의미한다고 이해하면 됩니다.
 void Game::CreateInputLayout()
 {
 	// 입력 버퍼 데이터를 설명하는 입력 레이아웃 객체 생성
@@ -214,9 +226,12 @@ void Game::CreateInputLayout()
 
 	// 위 구조(배열)를 기준으로 배열의 크기에서 배열 하나의 크기를 나눠서 배열의 개수 구하기
 	const int32 count = sizeof(layout) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+
+	// 이제 최종적으로 레이아웃 객체를 생성하고 이를 통해 정점 데이터를 쉐이더로 전달하게 됩니다.
 	_device->CreateInputLayout(layout, count, _vsBlob->GetBufferPointer(), _vsBlob->GetBufferSize(), _inputLayout.GetAddressOf());
 }
 
+// 버퍼 데이터 생성
 void Game::CreateVS()
 {
 	LoadShaderFromFile(L"Default.hlsl", "VS", "vs_5_0", _vsBlob);
@@ -224,6 +239,7 @@ void Game::CreateVS()
 	CHECK(hr);
 }
 
+// 픽셀 데이터 생성
 void Game::CreatePS()
 {
 	LoadShaderFromFile(L"Default.hlsl", "PS", "ps_5_0", _psBlob);
@@ -231,11 +247,13 @@ void Game::CreatePS()
 	CHECK(hr);
 }
 
+// 쉐이더 파일(HLSL)를 로드하고 컴파일 합니다.
 void Game::LoadShaderFromFile(const wstring& path, const string& name, const string& version, ComPtr<ID3DBlob>& blob)
 {
 	// 컴파일 플래그, 디버그 용도 및 최적화 건너뛰는 옵션
 	const uint32 compileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 
+	// D3DCompileFromFile : 쉐이더를 컴파일하고 결과를 "blob"에 저장합니다.
 	HRESULT hr = ::D3DCompileFromFile(
 		path.c_str(),
 		nullptr,

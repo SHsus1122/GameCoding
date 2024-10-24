@@ -46,6 +46,7 @@ private:
 	ComPtr<IDXGISwapChain> _swapChain = nullptr;
 
 	// RTV(Render Target View)
+	// 렌더링 파이프라인의 출력을 특정한 리소스와 바인딩시 사용합니다.
 	ComPtr<ID3D11RenderTargetView> _renderTargetView;
 
 	// Misc
