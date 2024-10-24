@@ -17,10 +17,14 @@ void Game::Init(HWND hwnd)
 	_width = GWinSizeX;
 	_height = GWinSizeY;
 
-	// TODO
 	CreateDeviceAndSwapChain();
 	CreateRenderTargetView();
 	SetViewport();
+
+	CreateGeometry();
+	CreateVS();
+	CreateInputLayout();
+	CreatePS();
 }
 
 void Game::Update()
@@ -32,7 +36,27 @@ void Game::Render()
 {
 	RenderBegin();
 
+	// IA - VS - RS - PS - OM
+	{
+		uint32 stride = sizeof(Vertex);
+		uint32 offset = 0;
 
+		// IA
+		_deviceContext->IASetVertexBuffers(0, 1, _vertexBuffer.GetAddressOf(), &stride, &offset);
+		_deviceContext->IASetInputLayout(_inputLayout.Get());
+		_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// VS
+		_deviceContext->VSSetShader(_vertexShader.Get(), nullptr, 0);
+
+		// RS
+
+		// PS
+		_deviceContext->PSSetShader(_pixelShader.Get(), nullptr, 0);
+
+		// OM
+		_deviceContext->Draw(_vertices.size(), 0);
+	}
 
 	RenderEnd();
 }
@@ -40,8 +64,8 @@ void Game::Render()
 void Game::RenderBegin()
 {
 	// 화면을 그려주고, 비워주고, 뷰포트에 설정
-	_deviceContext->OMSetRenderTargets(1, _rednerTargetView.GetAddressOf(), nullptr);
-	_deviceContext->ClearRenderTargetView(_rednerTargetView.Get(), _clearColor);
+	_deviceContext->OMSetRenderTargets(1, _renderTargetView.GetAddressOf(), nullptr);
+	_deviceContext->ClearRenderTargetView(_renderTargetView.Get(), _clearColor);
 	_deviceContext->RSSetViewports(1, &_viewPort);
 }
 
@@ -76,7 +100,7 @@ void Game::CreateDeviceAndSwapChain()
 		// 디스플레이의 비례에 따른 처리로 아래는 아무런 설정을 하지 않음
 		// 화면을 늘리거나 줄이거나, 전체화면을 하는 등 후면버퍼와의 비례차가 생길 때 어떻게 하는가에 대한 옵션입니다.
 		desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-		
+
 		// 멀티 샘플링 설정 1은 사용하지 않음
 		desc.SampleDesc.Count = 1;
 		desc.SampleDesc.Quality = 0;
@@ -128,7 +152,7 @@ void Game::CreateRenderTargetView()
 	CHECK(hr);
 
 	// 이후 CreateRenderTargetView를 통해서 GPU에 넘겨줘서 복사하게 합니다.
-	_device->CreateRenderTargetView(backBuffer.Get(), nullptr, _rednerTargetView.GetAddressOf());
+	_device->CreateRenderTargetView(backBuffer.Get(), nullptr, _renderTargetView.GetAddressOf());
 	CHECK(hr);
 }
 
@@ -141,4 +165,87 @@ void Game::SetViewport()
 	_viewPort.Height = static_cast<float>(_height);
 	_viewPort.MinDepth = 0.f;
 	_viewPort.MaxDepth = 1.f;
+}
+
+void Game::CreateGeometry()
+{
+	// VertextData
+	{
+		_vertices.resize(3);
+
+		_vertices[0].position = Vec3{ -0.5f, -0.5f, 0 };
+		_vertices[0].color = Color{ 1.0f, 0.f, 0.f, 1.f };
+
+		_vertices[1].position = Vec3{ 0, 0.5f, 0 };
+		_vertices[1].color = Color{ 0.f, 1.0f, 0.f, 1.f };
+
+		_vertices[2].position = Vec3{ 0.5f, -0.5f, 0 };
+		_vertices[2].color = Color{ 0.f, 0.f, 1.0f, 1.f };
+	}
+
+	// VertexBuffer (GPU에서 이뤄지는 작업)
+	{
+		// Buffer 묘사 단계
+		D3D11_BUFFER_DESC desc;
+		ZeroMemory(&desc, sizeof(desc));
+		desc.Usage = D3D11_USAGE_IMMUTABLE;
+		desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+		desc.ByteWidth = (uint32)sizeof(Vertex) * _vertices.size();
+
+		// Buffer 복사 단계
+		D3D11_SUBRESOURCE_DATA data;
+		ZeroMemory(&data, sizeof(data));
+		data.pSysMem = _vertices.data();	// 첫 번째 데이터의 시작주소
+
+		_device->CreateBuffer(&desc, &data, _vertexBuffer.GetAddressOf());
+	}
+}
+
+// 정점 버퍼에서 데이터를 가져와 CreateInputLayout에서 정의한 시맨틱을 통해 쉐이더로 전달
+void Game::CreateInputLayout()
+{
+	// 입력 버퍼 데이터를 설명하는 입력 레이아웃 객체 생성
+	D3D11_INPUT_ELEMENT_DESC layout[] =
+	{
+		// POSITION은 변수명, COLOR의 12는 바이트 위치(직접 만든 struct 참고)
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+
+	// 위 구조(배열)를 기준으로 배열의 크기에서 배열 하나의 크기를 나눠서 배열의 개수 구하기
+	const int32 count = sizeof(layout) / sizeof(D3D11_INPUT_ELEMENT_DESC);
+	_device->CreateInputLayout(layout, count, _vsBlob->GetBufferPointer(), _vsBlob->GetBufferSize(), _inputLayout.GetAddressOf());
+}
+
+void Game::CreateVS()
+{
+	LoadShaderFromFile(L"Default.hlsl", "VS", "vs_5_0", _vsBlob);
+ 	HRESULT hr = _device->CreateVertexShader(_vsBlob->GetBufferPointer(), _vsBlob->GetBufferSize(), nullptr, _vertexShader.GetAddressOf());
+	CHECK(hr);
+}
+
+void Game::CreatePS()
+{
+	LoadShaderFromFile(L"Default.hlsl", "PS", "ps_5_0", _psBlob);
+	HRESULT hr = _device->CreatePixelShader(_psBlob->GetBufferPointer(), _psBlob->GetBufferSize(), nullptr, _pixelShader.GetAddressOf());
+	CHECK(hr);
+}
+
+void Game::LoadShaderFromFile(const wstring& path, const string& name, const string& version, ComPtr<ID3DBlob>& blob)
+{
+	// 컴파일 플래그, 디버그 용도 및 최적화 건너뛰는 옵션
+	const uint32 compileFlag = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+
+	HRESULT hr = ::D3DCompileFromFile(
+		path.c_str(),
+		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		name.c_str(),
+		version.c_str(),
+		compileFlag,
+		0,
+		blob.GetAddressOf(),
+		nullptr);
+
+	CHECK(hr);
 }
