@@ -25,6 +25,8 @@ void Game::Init(HWND hwnd)
 	CreateVS();
 	CreateInputLayout();
 	CreatePS();
+
+	CreateSRV();
 }
 
 void Game::Update()
@@ -44,6 +46,7 @@ void Game::Render()
 		// IA(Input Assembler), 입력 어셈블러
 		// Vertex데이터를 수집하고 Index버퍼를 이용해 Vertex의 복제나 중복을 방지하며 정점 데이터를 GPU에 전달하는 단계입니다.
 		_deviceContext->IASetVertexBuffers(0, 1, _vertexBuffer.GetAddressOf(), &stride, &offset);
+		_deviceContext->IASetIndexBuffer(_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
 		_deviceContext->IASetInputLayout(_inputLayout.Get());
 		_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -58,10 +61,12 @@ void Game::Render()
 		// 그리고자 하는 오브젝트(모델, 리소스)에 색상을 입힐 때 사용하는 작은 프로그램입니다.
 		// 보여지는 모든 픽셀들에 대해 GPU에서 연산이 됩니다.(색을 입히는 과정이 아니라 계산하는(최종 출력 결정) 아닙니다)
 		_deviceContext->PSSetShader(_pixelShader.Get(), nullptr, 0);
+		_deviceContext->PSSetShaderResources(0, 1, _shaderResourceView.GetAddressOf());
 
 		// OM(Output Merge)
 		// 렌더링 파이프라인의 마지막 단계로 RTV에 그리기 전에 최종적으로 병합하는 단계입니다.(모든 픽셀 쉐이더를 화면에 그리는 단계)
-		_deviceContext->Draw(_vertices.size(), 0);
+		//_deviceContext->Draw(_vertices.size(), 0);
+		_deviceContext->DrawIndexed(_indices.size(), 0, 0);
 	}
 
 	RenderEnd();
@@ -181,16 +186,23 @@ void Game::CreateGeometry()
 {
 	// VertextData 정점 데이터 생성
 	{
-		_vertices.resize(3);
+		_vertices.resize(4);
 
 		_vertices[0].position = Vec3{ -0.5f, -0.5f, 0 };
-		_vertices[0].color = Color{ 1.0f, 0.f, 0.f, 1.f };
+		_vertices[0].uv = Vec2{ 0.f, 2.f };
+		//_vertices[0].color = Color{ 1.f, 0.f, 0.f, 1.f };
 
-		_vertices[1].position = Vec3{ 0, 0.5f, 0 };
-		_vertices[1].color = Color{ 0.f, 1.0f, 0.f, 1.f };
+		_vertices[1].position = Vec3{ -0.5f, 0.5f, 0 };
+		_vertices[1].uv = Vec2{ 0.f, 0.f };
+		//_vertices[1].color = Color{ 1.f, 0.f, 0.f, 1.f };
 
 		_vertices[2].position = Vec3{ 0.5f, -0.5f, 0 };
-		_vertices[2].color = Color{ 0.f, 0.f, 1.0f, 1.f };
+		_vertices[2].uv = Vec2{ 2.f, 2.f };
+		//_vertices[2].color = Color{ 1.f, 0.f, 0.f, 1.f };
+
+		_vertices[3].position = Vec3{ 0.5f, 0.5f, 0 };
+		_vertices[3].uv = Vec2{ 2.f, 0.f };
+		//_vertices[3].color = Color{ 1.f, 0.f, 0.f, 1.f };
 	}
 
 	// VertexBuffer (GPU에서 이뤄지는 작업)
@@ -208,7 +220,33 @@ void Game::CreateGeometry()
 		data.pSysMem = _vertices.data();	// 첫 번째 데이터의 시작주소
 
 		// 정점 데이터를 최종적으로 생성합니다.
-		_device->CreateBuffer(&desc, &data, _vertexBuffer.GetAddressOf());
+		HRESULT hr = _device->CreateBuffer(&desc, &data, _vertexBuffer.GetAddressOf());
+		CHECK(hr);
+	}
+
+	// index 리스트(버텍스의 위치를 참조해서 구성하며 이를 통해 중복 방지로 메모리를 절약합니다.)
+	{
+		// 시계 방향
+		_indices = { 0, 1, 2, 2, 1, 3 };
+	}
+
+	// IndexBuffer
+	{
+		// Buffer 묘사 단계
+		D3D11_BUFFER_DESC desc;
+		ZeroMemory(&desc, sizeof(desc));
+		desc.Usage = D3D11_USAGE_IMMUTABLE;			// 초기화 후 버퍼 데이터를 변경하지 않는 옵션
+		desc.BindFlags = D3D11_BIND_INDEX_BUFFER;	// 버퍼를 꼭짓점 버퍼로 입력 어셈블러 단계에 바인딩
+		desc.ByteWidth = (uint32)sizeof(uint32) * _indices.size();
+
+		// Buffer 복사 단계(GPU로 복사할 데이터 설정)
+		D3D11_SUBRESOURCE_DATA data;
+		ZeroMemory(&data, sizeof(data));
+		data.pSysMem = _indices.data();	// 첫 번째 데이터의 시작주소
+
+		// 정점 데이터를 최종적으로 생성합니다.
+		HRESULT hr = _device->CreateBuffer(&desc, &data, _indexBuffer.GetAddressOf());
+		CHECK(hr);
 	}
 }
 
@@ -221,7 +259,7 @@ void Game::CreateInputLayout()
 	{
 		// POSITION은 변수명, COLOR의 12는 바이트 위치(직접 만든 struct 참고)
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 
 	// 위 구조(배열)를 기준으로 배열의 크기에서 배열 하나의 크기를 나눠서 배열의 개수 구하기
@@ -235,7 +273,7 @@ void Game::CreateInputLayout()
 void Game::CreateVS()
 {
 	LoadShaderFromFile(L"Default.hlsl", "VS", "vs_5_0", _vsBlob);
- 	HRESULT hr = _device->CreateVertexShader(_vsBlob->GetBufferPointer(), _vsBlob->GetBufferSize(), nullptr, _vertexShader.GetAddressOf());
+	HRESULT hr = _device->CreateVertexShader(_vsBlob->GetBufferPointer(), _vsBlob->GetBufferSize(), nullptr, _vertexShader.GetAddressOf());
 	CHECK(hr);
 }
 
@@ -244,6 +282,21 @@ void Game::CreatePS()
 {
 	LoadShaderFromFile(L"Default.hlsl", "PS", "ps_5_0", _psBlob);
 	HRESULT hr = _device->CreatePixelShader(_psBlob->GetBufferPointer(), _psBlob->GetBufferSize(), nullptr, _pixelShader.GetAddressOf());
+	CHECK(hr);
+}
+
+// Shader Resource View
+// 쉐이더에 리소스를 제공하기 위해 사용되는 인터페이스입니다. 즉, 리소스를 파이프라인에 연결해줍니다.
+// 쉐이더 단계에서 자원을 읽을 수 있게 해줍니다.(여기서는 외부 소스파일 png를 불러와서 사용하게 합니다)
+void Game::CreateSRV()
+{
+	DirectX::TexMetadata md;
+	DirectX::ScratchImage img;
+	HRESULT hr = ::LoadFromWICFile(L"Golem.png", WIC_FLAGS_NONE, &md, img);
+	CHECK(hr);
+
+	// 이미지를 불러온 다음 리소스뷰 생성
+	hr = ::CreateShaderResourceView(_device.Get(), img.GetImages(), img.GetImageCount(), md, _shaderResourceView.GetAddressOf());
 	CHECK(hr);
 }
 
