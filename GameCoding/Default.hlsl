@@ -22,12 +22,18 @@ struct VS_OUTPUT
     float2 uv : TEXCOORD;
 };
 
+// 상수 버퍼
+cbuffer TransformData : register(b0)
+{
+    float4 offset;
+}
+
 // IA - VS - RS - PS - OM
 // VertexShader 메인 함수
 VS_OUTPUT VS(VS_INPUT input)
 {
     VS_OUTPUT output;
-    output.position = input.position;
+    output.position = input.position + offset;
     output.uv = input.uv;
 
     return output;

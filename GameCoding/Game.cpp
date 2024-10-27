@@ -27,11 +27,25 @@ void Game::Init(HWND hwnd)
 	CreatePS();
 
 	CreateSRV();
+	CreateConstantBuffer();
 }
 
 void Game::Update()
 {
+	_transformData.offset.x += 0.0003f;
+	_transformData.offset.y += 0.0003f;
 
+	// GPU리소스를 CPU에서 수정 가능하도록 매핑된 데이터를 저장할 구조체를 생성합니다.
+	D3D11_MAPPED_SUBRESOURCE subResource;
+	ZeroMemory(&subResource, sizeof(subResource));
+
+	// GPU의 상수 버퍼에 새로운 데이터를 쓰기 위해서 CPU에 접근합니다.
+	//  - Map을 통해 데이터에 쓰기 전용 모드로 접근하고 memcpy를 통해 매핑된 리소스의 데이터 값을 복사합니다.
+	//  - 이후 _transformData(게임 객체 위치나 변형을 담은 구조체)를 통해 렌더링시 사용합니다.
+	//  - 마지막으로 Unmap을 통해 _transformData 즉, 객체의 위치 정보를 업데이트 하고 이를 상수 버퍼를 통해 GPU에 전달합니다.
+	_deviceContext->Map(_constantBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &subResource);
+	::memcpy(subResource.pData, &_transformData, sizeof(_transformData));
+	_deviceContext->Unmap(_constantBuffer.Get(), 0);
 }
 
 void Game::Render()
@@ -53,6 +67,7 @@ void Game::Render()
 		// VS(Vertex Shader)
 		// 정점 데이터들을 3D공간으로 변환시켜주는 작은 프로그램입니다.(정점의 위치를 계산해 3D 공간에서 2D(화면)공간으로 변환합니다)
 		_deviceContext->VSSetShader(_vertexShader.Get(), nullptr, 0);
+		_deviceContext->VSSetConstantBuffers(0, 1, _constantBuffer.GetAddressOf());
 
 		// RS(Rasterize)
 		// Vertex Shader가 넘겨준 부분에 해당하는 모든 픽셀을 판별(변환)하는 단계입니다.
@@ -189,7 +204,7 @@ void Game::CreateGeometry()
 		_vertices.resize(4);
 
 		_vertices[0].position = Vec3{ -0.5f, -0.5f, 0 };
-		_vertices[0].uv = Vec2{ 0.f, 2.f };
+		_vertices[0].uv = Vec2{ 0.f, 1.f };
 		//_vertices[0].color = Color{ 1.f, 0.f, 0.f, 1.f };
 
 		_vertices[1].position = Vec3{ -0.5f, 0.5f, 0 };
@@ -197,11 +212,11 @@ void Game::CreateGeometry()
 		//_vertices[1].color = Color{ 1.f, 0.f, 0.f, 1.f };
 
 		_vertices[2].position = Vec3{ 0.5f, -0.5f, 0 };
-		_vertices[2].uv = Vec2{ 2.f, 2.f };
+		_vertices[2].uv = Vec2{ 1.f, 1.f };
 		//_vertices[2].color = Color{ 1.f, 0.f, 0.f, 1.f };
 
 		_vertices[3].position = Vec3{ 0.5f, 0.5f, 0 };
-		_vertices[3].uv = Vec2{ 2.f, 0.f };
+		_vertices[3].uv = Vec2{ 1.f, 0.f };
 		//_vertices[3].color = Color{ 1.f, 0.f, 0.f, 1.f };
 	}
 
@@ -297,6 +312,21 @@ void Game::CreateSRV()
 
 	// 이미지를 불러온 다음 리소스뷰 생성
 	hr = ::CreateShaderResourceView(_device.Get(), img.GetImages(), img.GetImageCount(), md, _shaderResourceView.GetAddressOf());
+	CHECK(hr);
+}
+
+// 상수 버퍼 생성(ConstantBuffer란 장면의 물체마다 달라지는 상수 데이터를 담기 위한 저장공간을 말합니다.)
+// 이를 통해 움직임이 있을 때, 매번 버텍스를 새로이 그리는게 아니라 한 번 그린 정보를 바탕으로 상수 버퍼만을 추가해 움직임을 구현합니다.(리소스 절약)
+void Game::CreateConstantBuffer()
+{
+	D3D11_BUFFER_DESC desc;
+	ZeroMemory(&desc, sizeof(desc));
+	desc.Usage = D3D11_USAGE_DYNAMIC;				// CPU_Write + GPU_Read 방식
+	desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;	// 상수 버퍼
+	desc.ByteWidth = sizeof(TransformData);
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	HRESULT hr = _device->CreateBuffer(&desc, nullptr, _constantBuffer.GetAddressOf());
 	CHECK(hr);
 }
 

@@ -16,3 +16,9 @@ struct Vertex
 	// - U : 가로, V : 세로
 	Vec2 uv;
 };
+
+struct TransformData
+{
+	Vec3 offset;
+	float dummy;	// ConstantBuffer를 생성하기 위해 16바이트 정렬을 위한 더미 데이터
+};
