@@ -1,35 +1,35 @@
 // HLSL(High Level Shader Language)
-// °í±Ş ½¦ÀÌ´õ ¾ğ¾î¶ó´Â ÀÇ¹Ì·Î ´ÙÀÌ·ºÆ®3D API ¿¡¼­ »ç¿ëµÇ´Â ½¦ÀÌµù ¾ğ¾îÀÔ´Ï´Ù.
-// Vertex Shader(Á¤Á¡ ½¦ÀÌ´õ)
-// ¹°Ã¼¸¦ ÀÌ·ç´Â °¢ Á¤Á¡µéÀÇ À§Ä¡¸¦ È­¸éÁÂÇ¥·Î º¯È¯ÇÕ´Ï´Ù.
+// ê³ ê¸‰ ì‰ì´ë” ì–¸ì–´ë¼ëŠ” ì˜ë¯¸ë¡œ ë‹¤ì´ë ‰íŠ¸3D API ì—ì„œ ì‚¬ìš©ë˜ëŠ” ì‰ì´ë”© ì–¸ì–´ì…ë‹ˆë‹¤.
+// Vertex Shader(ì •ì  ì‰ì´ë”)
+// ë¬¼ì²´ë¥¼ ì´ë£¨ëŠ” ê° ì •ì ë“¤ì˜ ìœ„ì¹˜ë¥¼ í™”ë©´ì¢Œí‘œë¡œ ë³€í™˜í•©ë‹ˆë‹¤.
 
 
-// Á¤Á¡ ½¦ÀÌ´õ¿¡ ÀÔ·ÂµÇ´Â µ¥ÀÌÅÍ ±¸Á¶Ã¼
+// ì •ì  ì‰ì´ë”ì— ì…ë ¥ë˜ëŠ” ë°ì´í„° êµ¬ì¡°ì²´
 struct VS_INPUT
 {
-    // CreateInputLayout¿¡¼­ ¸¸µç layout±¸Á¶Ã¼¿¡¼­ ÁöÁ¤ÇÑ º¯¼ö¸í POSITION À¸·Î 
+    // CreateInputLayoutì—ì„œ ë§Œë“  layoutêµ¬ì¡°ì²´ì—ì„œ ì§€ì •í•œ ë³€ìˆ˜ëª… POSITION ìœ¼ë¡œ 
     float4 position : POSITION;
     //float4 color : COLOR;
     float2 uv : TEXCOORD;
 };
 
-// Á¤Á¡ ½¦ÀÌ´õ°¡ Ãâ·ÂÇÏ´Â µ¥ÀÌÅÍ ±¸Á¶Ã¼
+// ì •ì  ì‰ì´ë”ê°€ ì¶œë ¥í•˜ëŠ” ë°ì´í„° êµ¬ì¡°ì²´
 struct VS_OUTPUT
 {
-    // SV_POSITION ÀÌ´Â ÃÖÁ¾ º¯È¯ À§Ä¡·Î D3D´Â ÀÌ µ¥ÀÌÅÍ¸¦ ±â¹İÀ¸·Î ÁÂÇ¥ º¯È¯À» Ã³¸®ÇÕ´Ï´Ù.
+    // SV_POSITION ì´ëŠ” ìµœì¢… ë³€í™˜ ìœ„ì¹˜ë¡œ D3DëŠ” ì´ ë°ì´í„°ë¥¼ ê¸°ë°˜ìœ¼ë¡œ ì¢Œí‘œ ë³€í™˜ì„ ì²˜ë¦¬í•©ë‹ˆë‹¤.
     float4 position : SV_POSITION;
     //float4 color : COLOR;
     float2 uv : TEXCOORD;
 };
 
-// »ó¼ö ¹öÆÛ
+// ìƒìˆ˜ ë²„í¼
 cbuffer TransformData : register(b0)
 {
     float4 offset;
 }
 
 // IA - VS - RS - PS - OM
-// VertexShader ¸ŞÀÎ ÇÔ¼ö
+// VertexShader ë©”ì¸ í•¨ìˆ˜
 VS_OUTPUT VS(VS_INPUT input)
 {
     VS_OUTPUT output;
@@ -39,13 +39,13 @@ VS_OUTPUT VS(VS_INPUT input)
     return output;
 }
 
-// t0 ·¹Áö½ºÅÍ¿¡ texture0 À» µî·ÏÇÕ´Ï´Ù.
+// t0 ë ˆì§€ìŠ¤í„°ì— texture0 ì„ ë“±ë¡í•©ë‹ˆë‹¤.
 Texture2D texture0 : register(t0);
 SamplerState sampler0 : register(s0);
 
 float4 PS(VS_OUTPUT input) : SV_Target
 {
-    // texture0 ¿¡ uv ÁÂÇ¥¸¦ ÀÌ¿ëÇØ¼­ ±×¿¡ ÇØ´çÇÏ´Â »ö»óÀ» »©¿Â´Ù´Â ÀÇ¹ÌÀÔ´Ï´Ù.
+    // texture0 ì— uv ì¢Œí‘œë¥¼ ì´ìš©í•´ì„œ ê·¸ì— í•´ë‹¹í•˜ëŠ” ìƒ‰ìƒì„ ë¹¼ì˜¨ë‹¤ëŠ” ì˜ë¯¸ì…ë‹ˆë‹¤.
     float4 color = texture0.Sample(sampler0, input.uv);
 
     return color;
