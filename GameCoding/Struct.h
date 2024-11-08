@@ -19,6 +19,7 @@ struct Vertex
 
 struct TransformData
 {
-	Vec3 offset;
-	float dummy;	// ConstantBuffer를 생성하기 위해 16바이트 정렬을 위한 더미 데이터
+	Matrix matWrold = Matrix::Identity;
+	Matrix matView = Matrix::Identity;
+	Matrix matProjection = Matrix::Identity;
 };

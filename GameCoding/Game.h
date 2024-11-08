@@ -12,7 +12,7 @@ public:
 	void Init(HWND hwnd);
 	void Update();
 	void Render();
-	
+
 private:
 	void RenderBegin();
 	void RenderEnd();
@@ -80,7 +80,7 @@ private:
 
 	// ID3DBlob인터페이스는 버전 중립적(모든 D3D버전에서 사용 가능)이며,
 	// 메시 최적화 및 로드 작업 중에 꼭짓점, 인접성 및 재료 정보를 저장하는 데이터 버퍼로 사용 가능합니다.
-	
+
 	// VS
 	ComPtr<ID3D11VertexShader> _vertexShader = nullptr;
 	ComPtr<ID3DBlob> _vsBlob = nullptr;
@@ -94,7 +94,7 @@ private:
 
 	// SRV
 	ComPtr<ID3D11ShaderResourceView> _shaderResourceView = nullptr;
-	
+
 	ComPtr<ID3D11SamplerState> _samplerState = nullptr;
 	ComPtr<ID3D11BlendState> _blendState = nullptr;
 	// [ CPU<->RAM ] [ GPU<->VRAM ]
@@ -102,5 +102,9 @@ private:
 	// SRT
 	TransformData _transformData;
 	ComPtr<ID3D11Buffer> _constantBuffer;
+
+	Vec3 _localPosition = { 0.f, 0.f, 0.f };
+	Vec3 _localRotation = { 0.f, 0.f, 0.f };
+	Vec3 _localScale = { 1.f, 1.f, 1.f };
 };
 

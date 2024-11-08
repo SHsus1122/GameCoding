@@ -36,8 +36,19 @@ void Game::Init(HWND hwnd)
 
 void Game::Update()
 {
-	_transformData.offset.x += 0.0003f;
-	_transformData.offset.y += 0.0003f;
+	//_transformData.offset.x += 0.0003f;
+	//_transformData.offset.y += 0.0003f;
+
+	// SRT(Scale - Rotation - Translation) 순서로 생성
+	Matrix matScale = Matrix::CreateScale(_localScale / 3);
+	Matrix matRotation = Matrix::CreateRotationX(_localRotation.x);
+	matRotation *= Matrix::CreateRotationY(_localRotation.y);
+	matRotation *= Matrix::CreateRotationZ(_localRotation.z);
+	Matrix matTranslation = Matrix::CreateTranslation(_localPosition);
+
+	// World 행렬로 생성
+	Matrix matWorld = matScale * matRotation * matTranslation;	// SRT 순서로 곱
+	_transformData.matWrold = matWorld;
 
 	// GPU리소스를 CPU에서 수정 가능하도록 매핑된 데이터를 저장할 구조체를 생성합니다.
 	D3D11_MAPPED_SUBRESOURCE subResource;
@@ -214,21 +225,21 @@ void Game::CreateGeometry()
 	{
 		_vertices.resize(4);
 
-		_vertices[0].position = Vec3{ -0.5f, -0.5f, 0 };
-		_vertices[0].uv = Vec2{ 0.f, 5.f };
-		//_vertices[0].color = Color{ 1.f, 0.f, 0.f, 1.f };
+		_vertices[0].position = Vec3(-0.5f, -0.5f, 0.f);
+		_vertices[0].uv = Vec2(0.f, 1.f);
+		//_vertices[0].color = Color(1.f, 0.f, 0.f, 1.f);
 
-		_vertices[1].position = Vec3{ -0.5f, 0.5f, 0 };
-		_vertices[1].uv = Vec2{ 0.f, 0.f };
-		//_vertices[1].color = Color{ 1.f, 0.f, 0.f, 1.f };
+		_vertices[1].position = Vec3(-0.5f, 0.5f, 0.f);
+		_vertices[1].uv = Vec2(0.f, 0.f);
+		//_vertices[1].color = Color(1.f, 0.f, 0.f, 1.f);
 
-		_vertices[2].position = Vec3{ 0.5f, -0.5f, 0 };
-		_vertices[2].uv = Vec2{ 5.f, 5.f };
-		//_vertices[2].color = Color{ 1.f, 0.f, 0.f, 1.f };
+		_vertices[2].position = Vec3(0.5f, -0.5f, 0.f);
+		_vertices[2].uv = Vec2(1.f, 1.f);
+		//_vertices[2].color = Color(1.f, 0.f, 0.f, 1.f);
 
-		_vertices[3].position = Vec3{ 0.5f, 0.5f, 0 };
-		_vertices[3].uv = Vec2{ 5.f, 0.f };
-		//_vertices[3].color = Color{ 1.f, 0.f, 0.f, 1.f };
+		_vertices[3].position = Vec3(0.5f, 0.5f, 0.f);
+		_vertices[3].uv = Vec2(1.f, 0.f);
+		//_vertices[3].color = Color(1.f, 0.f, 0.f, 1.f);
 	}
 
 	// VertexBuffer (GPU에서 이뤄지는 작업)
