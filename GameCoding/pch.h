@@ -41,3 +41,9 @@ using namespace Microsoft::WRL;
 #endif
 
 #define CHECK(p)	assert(SUCCEEDED(p))
+
+// Engine
+#include "Graphics.h"
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
+#include "InputLayout.h"
